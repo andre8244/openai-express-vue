@@ -1,7 +1,11 @@
 const express = require("express");
 const OpenAI = require('openai');
-const app = express();
+const cors = require('cors')
+
 const port = 3000;
+const app = express();
+app.use(cors())
+
 
 const openai = new OpenAI();
 // const openai = new OpenAI({ apiKey: process.env['OPENAI_API_KEY'] }); // This is the default and can be omitted
