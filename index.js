@@ -3,6 +3,9 @@ const OpenAI = require('openai');
 const app = express();
 const port = 3000;
 
+const openai = new OpenAI();
+// const openai = new OpenAI({ apiKey: process.env['OPENAI_API_KEY'] }); // This is the default and can be omitted
+
 app.get("/", (req, res) => {
   res.send("Hello World!");
 });
@@ -32,9 +35,6 @@ app.get("/events", async function (req, res) {
 });
 
 app.get("/test", async (req, res) => {
-  const openai = new OpenAI();
-  // const openai = new OpenAI({ apiKey: process.env['OPENAI_API_KEY'] }); // This is the default and can be omitted
-
   const chatCompletion = await openai.chat.completions.create({
     messages: [{ role: 'user', content: 'Say this is a test' }],
     model: 'gpt-3.5-turbo',
@@ -42,6 +42,37 @@ app.get("/test", async (req, res) => {
 
   console.log(chatCompletion.choices[0]);
   res.send(chatCompletion.choices[0]);
+})
+
+app.get("/stream", async (req, res) => {
+  res.set({
+    "Cache-Control": "no-cache",
+    "Content-Type": "text/event-stream",
+    Connection: "keep-alive",
+  });
+  res.flushHeaders();
+
+  // Tell the client to retry every 10 seconds if connectivity is lost
+  res.write("retry: 10000\n\n");
+
+  const stream = await openai.chat.completions.create({
+    model: 'gpt-3.5-turbo',
+    messages: [{ role: 'user', content: 'Slowly count from 1 to 5' }],
+    stream: true,
+  });
+
+  for await (const chunk of stream) {
+    // console.log("chunk", chunk);
+    chunkContent = chunk.choices[0]?.delta?.content || ''
+
+    if (chunkContent) {
+      console.log(`chunkContent: .${chunkContent}.`);
+      // process.stdout.write(chunkContent); ////
+      res.write(`data: ${chunkContent}\n\n`);
+    }
+  }
+  console.log("\nEnd of stream");
+  res.end()
 })
 
 
