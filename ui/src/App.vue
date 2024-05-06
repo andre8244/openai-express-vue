@@ -1,23 +1,46 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
-import axios from 'axios'
+import { ref } from 'vue'
+
+const chatOutput = ref('')
 
 async function test() {
-  const response = await fetch("http://localhost:3000/stream", {
-    signal: AbortSignal.timeout(10000),
-  });
+  chatOutput.value = ''
+  const evtSource = new EventSource('http://localhost:3000/stream')
 
-  const reader = response.body.getReader();
-
-  while (true) {
-    const { done, value } = await reader.read();
-
-    if (done) {
-      console.log("Stream complete");
-      break;
-    }
-    console.log("received:", new TextDecoder().decode(value));
+  evtSource.onmessage = (event) => {
+    // console.log('onmessage, event', event) ////
+    console.log(event.data) ////
+    chatOutput.value += event.data
   }
+
+  evtSource.onerror = (err) => {
+    console.error('EventSource failed:', err)
+    evtSource.close()
+  }
+
+  evtSource.addEventListener('eos', (event) => {
+    console.log('on eos', event)
+    evtSource.close()
+  })
+
+  // const response = await fetch("http://localhost:3000/stream", { ////
+  //   signal: AbortSignal.timeout(10000),
+  // });
+
+  // const reader = response.body.getReader();
+
+  // // improve stream management
+
+  // while (true) {
+  //   const { done, value } = await reader.read();
+
+  //   if (done) {
+  //     console.log("Stream complete");
+  //     break;
+  //   }
+  //   console.log("received:", new TextDecoder().decode(value));
+  // }
 }
 </script>
 
@@ -26,7 +49,11 @@ async function test() {
     <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
 
     <div class="wrapper">
-      <button @click="test">Test</button>
+      <div class="flex">
+        <button @click="test">Test</button>
+        <div>Chat output</div>
+        <div>{{ chatOutput }}</div>
+      </div>
 
       <nav>
         <RouterLink to="/">Home</RouterLink>
