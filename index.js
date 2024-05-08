@@ -5,6 +5,7 @@ const cors = require("cors");
 const port = 3000;
 const app = express();
 app.use(cors());
+app.use(express.json());
 
 const openai = new OpenAI();
 // const openai = new OpenAI({ apiKey: process.env['OPENAI_API_KEY'] }); // This is the default and can be omitted
@@ -45,6 +46,45 @@ app.get("/test", async (req, res) => {
 
   console.log(chatCompletion.choices[0]);
   res.send(chatCompletion.choices[0]);
+});
+
+app.post("/chat", async (req, res) => {
+  res.set({
+    "Cache-Control": "no-cache",
+    "Content-Type": "text/event-stream",
+    Connection: "keep-alive"
+  });
+  res.flushHeaders();
+
+  console.log("msg", req.body.msg); ////
+  const msg = req.body.msg;
+
+  // Tell the client to retry if connectivity is lost
+  res.write("retry: 15000\n\n");
+
+  const stream = await openai.chat.completions.create({
+    model: "gpt-3.5-turbo",
+    messages: [{ role: "user", content: msg }], ////
+    // messages: [{ role: "user", content: "Count from 1 to 3" }], ////
+    stream: true
+  });
+
+  for await (const chunk of stream) {
+    // console.log("chunk", chunk);
+    chunkContent = chunk.choices[0]?.delta?.content || "";
+
+    if (chunkContent) {
+      // console.log(`chunkContent: .${chunkContent}.`);
+      // process.stdout.write(chunkContent); ////
+      res.write(`data: ${chunkContent}\n\n`);
+    }
+  }
+
+  // send end of stream event
+  res.write(`event: eos\ndata: #\n\n`);
+
+  console.log("\nEnd of stream");
+  res.end();
 });
 
 app.get("/stream", async (req, res) => {

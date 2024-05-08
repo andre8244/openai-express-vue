@@ -1,46 +1,42 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
 import { ref } from 'vue'
+import { SSE } from 'sse.js'
 
+const chatInput = ref('')
 const chatOutput = ref('')
 
-async function test() {
+async function send() {
   chatOutput.value = ''
-  const evtSource = new EventSource('http://localhost:3000/stream')
 
-  evtSource.onmessage = (event) => {
-    // console.log('onmessage, event', event) ////
-    console.log(event.data) ////
-    chatOutput.value += event.data
-  }
-
-  evtSource.onerror = (err) => {
-    console.error('EventSource failed:', err)
-    evtSource.close()
-  }
-
-  evtSource.addEventListener('eos', (event) => {
-    console.log('on eos', event)
-    evtSource.close()
+  var source = new SSE('http://localhost:3000/chat', {
+    headers: { 'Content-Type': 'application/json' },
+    payload: JSON.stringify({ msg: chatInput.value })
   })
 
-  // const response = await fetch("http://localhost:3000/stream", { ////
-  //   signal: AbortSignal.timeout(10000),
-  // });
+  source.onopen = (e: any) => {
+    console.log('sse onopen', e)
+  }
 
-  // const reader = response.body.getReader();
+  source.onerror = (e: any) => {
+    console.log('sse onerror', e)
+  }
 
-  // // improve stream management
+  source.addEventListener('message', (e: any) => {
+    console.log('onmessage', e)
 
-  // while (true) {
-  //   const { done, value } = await reader.read();
+    console.log(e.data) ////
+    chatOutput.value += e.data
 
-  //   if (done) {
-  //     console.log("Stream complete");
-  //     break;
-  //   }
-  //   console.log("received:", new TextDecoder().decode(value));
-  // }
+    // // Assuming we receive JSON-encoded data payloads: ////
+    // var payload = JSON.parse(e.data)
+    // console.log(payload)
+  })
+
+  source.addEventListener('eos', (e: any) => {
+    console.log('on eos', e)
+    //   evtSource.close()
+  })
 }
 </script>
 
@@ -49,11 +45,13 @@ async function test() {
     <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
 
     <div class="wrapper">
-      <div class="flex">
-        <button @click="test">Test</button>
+      <form class="flex" @submit.prevent>
+        <div>Chat input</div>
+        <input type="text" v-model="chatInput" />
+        <button @click="send" :disabled="!chatInput">Send</button>
         <div>Chat output</div>
         <div>{{ chatOutput }}</div>
-      </div>
+      </form>
 
       <nav>
         <RouterLink to="/">Home</RouterLink>
