@@ -1,18 +1,35 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { SSE } from 'sse.js'
-import { NeTextInput, NeButton } from '@nethesis/vue-components'
+import { NeTextInput, NeButton, focusElement } from '@nethesis/vue-components'
+import ColoredSkeleton from '@/components/ColoredSkeleton.vue'
+
+type ChatMessage = {
+  content: string
+  role: string
+}
 
 const chatInput = ref('')
+const chatInputRef = ref()
 const chatOutput = ref('')
+const chatMessages = ref<ChatMessage[]>([])
+const isLoading = ref(false)
 
 async function send() {
-  chatOutput.value = ''
+  if (!chatInput.value) {
+    return
+  }
+
+  const userMessage = { role: 'user', content: chatInput.value } as ChatMessage
+  chatMessages.value.push(userMessage)
+  isLoading.value = true
 
   var source = new SSE('http://localhost:3000/chat', {
     headers: { 'Content-Type': 'application/json' },
     payload: JSON.stringify({ msg: chatInput.value })
   })
+
+  chatInput.value = ''
 
   source.onopen = (e: any) => {
     console.log('sse onopen', e)
@@ -20,6 +37,7 @@ async function send() {
 
   source.onerror = (e: any) => {
     console.log('sse onerror', e)
+    isLoading.value = false
   }
 
   source.addEventListener('message', (e: any) => {
@@ -35,7 +53,13 @@ async function send() {
 
   source.addEventListener('eos', (e: any) => {
     console.log('on eos', e)
-    //   evtSource.close()
+    //   evtSource.close() ////
+
+    const assistantMessage = { role: 'assistant', content: chatOutput.value } as ChatMessage
+    chatMessages.value.push(assistantMessage)
+    chatOutput.value = ''
+    isLoading.value = false
+    focusElement(chatInputRef)
   })
 }
 </script>
@@ -45,16 +69,35 @@ async function send() {
     <h1 class="text-3xl font-bold text-primary-700 dark:text-primary-500">openai-express-vue</h1>
 
     <form class="flex flex-col space-y-6" @submit.prevent>
-      <NeTextInput v-model.trim="chatInput" placeholder="Message" />
-      <NeButton type="submit" kind="primary" @click="send" :disabled="!chatInput">Send</NeButton>
-      <div>{{ chatOutput }}</div>
+      <div class="flex flex-col items-start gap-4">
+        <div
+          v-for="(message, index) in chatMessages"
+          :key="index"
+          :class="[
+            'rounded-xl bg-gray-800 p-5 max-w-96',
+            { 'self-end bg-primary-900': message.role !== 'user' }
+          ]"
+        >
+          {{ message.content }}
+        </div>
+        <div v-if="isLoading" class="rounded-xl bg-primary-900 p-5 max-w-96 self-end">
+          <div v-if="chatOutput.length">{{ chatOutput }}</div>
+          <ColoredSkeleton
+            v-else
+            :lines="2"
+            colorClasses="bg-primary-300 dark:bg-primary-700"
+            size="sm"
+            class="w-80"
+          />
+        </div>
+      </div>
+      <NeTextInput
+        v-model.trim="chatInput"
+        placeholder="Message"
+        :disabled="isLoading"
+        ref="chatInputRef"
+      />
+      <NeButton type="submit" kind="primary" @click="send" :disabled="isLoading">Send</NeButton>
     </form>
-
-    <!-- <nav> //// 
-      <RouterLink to="/">Home</RouterLink>
-      <RouterLink to="/about">About</RouterLink>
-    </nav> -->
-
-    <!-- <RouterView /> ////  -->
   </div>
 </template>

@@ -10,6 +10,13 @@ app.use(express.json());
 const openai = new OpenAI();
 // const openai = new OpenAI({ apiKey: process.env['OPENAI_API_KEY'] }); // This is the default and can be omitted
 
+const chatMessages = [
+  {
+    role: "system",
+    content: "You are a helpful assistant"
+  }
+];
+
 app.get("/", (req, res) => {
   res.send("Hello World!");
 });
@@ -59,26 +66,34 @@ app.post("/chat", async (req, res) => {
   console.log("msg", req.body.msg); ////
   const msg = req.body.msg;
 
+  chatMessages.push({ role: "user", content: msg });
+
+  console.log("\nchatMessages:"); ////
+  console.log(chatMessages); ////
+
   // Tell the client to retry if connectivity is lost
   res.write("retry: 15000\n\n");
 
   const stream = await openai.chat.completions.create({
+    // model: "gpt-4o", ////
     model: "gpt-3.5-turbo",
-    messages: [{ role: "user", content: msg }], ////
-    // messages: [{ role: "user", content: "Count from 1 to 3" }], ////
+    messages: chatMessages,
     stream: true
   });
 
+  let assistantMessage = "";
+
   for await (const chunk of stream) {
-    // console.log("chunk", chunk);
     chunkContent = chunk.choices[0]?.delta?.content || "";
 
     if (chunkContent) {
       // console.log(`chunkContent: .${chunkContent}.`);
       // process.stdout.write(chunkContent); ////
       res.write(`data: ${chunkContent}\n\n`);
+      assistantMessage += chunkContent;
     }
   }
+  chatMessages.push({ role: "assistant", content: assistantMessage });
 
   // send end of stream event
   res.write(`event: eos\ndata: #\n\n`);
@@ -123,5 +138,5 @@ app.get("/stream", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+  console.log(`App listening on port ${port}`);
 });
