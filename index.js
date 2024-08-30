@@ -48,7 +48,7 @@ app.get("/events", async function (req, res) {
 app.get("/test", async (req, res) => {
   const chatCompletion = await openai.chat.completions.create({
     messages: [{ role: "user", content: "Say this is a test" }],
-    model: "gpt-3.5-turbo"
+    model: "gpt-4o-mini"
   });
 
   console.log(chatCompletion.choices[0]);
@@ -75,8 +75,7 @@ app.post("/chat", async (req, res) => {
   res.write("retry: 15000\n\n");
 
   const stream = await openai.chat.completions.create({
-    // model: "gpt-4o", ////
-    model: "gpt-3.5-turbo",
+    model: "gpt-4o-mini",
     messages: chatMessages,
     stream: true
   });
@@ -114,7 +113,7 @@ app.get("/stream", async (req, res) => {
   res.write("retry: 15000\n\n");
 
   const stream = await openai.chat.completions.create({
-    model: "gpt-3.5-turbo",
+    model: "gpt-4o-mini",
     messages: [{ role: "user", content: "Count from 1 to 3" }],
     stream: true
   });
